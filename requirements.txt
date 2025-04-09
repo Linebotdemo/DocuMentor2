@@ -8,3 +8,4 @@ redis==4.6.0
 
 # 環境変数の読み込み
 python-dotenv==1.0.0
+requests==2.31.0
