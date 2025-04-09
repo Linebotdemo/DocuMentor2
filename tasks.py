@@ -1,28 +1,26 @@
 # tasks.py
 
 import os
+import requests
 from celery import Celery
 from dotenv import load_dotenv
-import requests
 
-# 環境変数の読み込み
 load_dotenv()
 
-# REDIS_URLは redis:// 付きのフルURLであることを前提
+# RedisとWhisperの設定
 REDIS_URL = os.getenv("REDIS_URL")
 WHISPER_API_URL = os.getenv("WHISPER_API_URL")
 
 print("🔧 REDIS_URL =", REDIS_URL)
 
-# Celeryインスタンス作成（backendは conf で別途設定する）
-celery = Celery("documentor_worker", broker=REDIS_URL)
-celery.conf.update(
-    result_backend=REDIS_URL,
-    task_serializer='json',
-    result_serializer='json',
-    accept_content=['json'],
-)
+# Celeryアプリ作成
+celery = Celery("documentor_worker")
 
+# brokerとbackendを明示的に設定
+celery.conf.broker_url = REDIS_URL
+celery.conf.result_backend = REDIS_URL   # ← ここも元に戻してOK、redisモジュールがインストールされたので動くはず！
+
+# タスク定義
 @celery.task
 def transcribe_video_task(video_url, video_id):
     print(f"🎬 Transcribing video {video_id} from {video_url}")
