@@ -1,18 +1,17 @@
 # tasks.py
+from dotenv import load_dotenv
+load_dotenv()
 
 import os
-import requests
 from celery import Celery
-from dotenv import load_dotenv
 
 
 
 load_dotenv()
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = os.getenv("REDIS_URL")
 WHISPER_API_URL = os.getenv("WHISPER_API_URL", "http://localhost:5000/transcribe")
-
-celery = Celery("documentor_worker", broker=REDIS_URL, backend=REDIS_URL)
+celery = Celery("worker", broker=REDIS_URL, backend=REDIS_URL)
 
 @celery.task
 def transcribe_video_task(video_url, video_id):
