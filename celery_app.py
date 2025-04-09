@@ -1,6 +1,9 @@
 import os
 from celery import Celery
 from app_factory import create_app
+from dotenv import load_dotenv
+load_dotenv()
+
 
 flask_app = create_app()
 
