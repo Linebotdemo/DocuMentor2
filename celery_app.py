@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+
+
 flask_app = create_app()
 
 def make_celery(app):
