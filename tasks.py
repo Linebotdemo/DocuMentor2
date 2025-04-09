@@ -1,7 +1,6 @@
 import os
 from celery import Celery
 
-
 celery = Celery(
     "tasks",
     broker=os.getenv("REDIS_URL"),
