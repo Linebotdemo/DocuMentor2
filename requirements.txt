@@ -1,36 +1,10 @@
-# 基本的なビルドツール
+# 最小構成のビルドに必要
 setuptools>=58.0.0
 wheel
 
-# Flask系
-Flask==2.2.5
-Flask-Login==0.6.2
-Flask-SQLAlchemy==3.0.5
-Flask-Migrate==4.0.4
-Flask-Cors==3.0.10
-
-# 本番サーバー
-gunicorn==20.1.0
-
-# Celery + Redis
+# Celery本体とRedisブローカー
 celery==5.2.7
 redis==4.6.0
 
-# 各種ライブラリ
-cloudinary==1.32.0
-openai==0.27.0
+# 環境変数の読み込み
 python-dotenv==1.0.0
-requests==2.28.2
-PyJWT==2.6.0
-line-bot-sdk==2.3.0
-PyPDF2==3.0.1
-psycopg2-binary==2.9.6
-Werkzeug==2.2.3
-pytz==2023.3
-
-# Pillowはビルドエラー避けのためバージョン指定（zlib問題の少ないバージョン）
-Pillow==9.4.0
-
-# エラーの原因となる可能性が高いパッケージは一旦除外または別構成で扱う
-# pdfkit==1.0.0
-# pytesseract==0.3.10  ← Tesseract自体が必要で、Railway側でインストール不可なので注意
