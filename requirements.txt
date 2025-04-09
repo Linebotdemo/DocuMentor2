@@ -4,7 +4,7 @@ wheel
 
 # Celery本体とRedisブローカー
 celery==5.3.6
-redis==4.6.0
+redis==5.0.1
 
 # 環境変数の読み込み
 python-dotenv==1.0.0
