@@ -1,20 +1,26 @@
 # run.py
 
 import os
-import subprocess
-from tasks import celery
+from celery import Celery
 from flask import Flask
 
-# ダミーのFlaskアプリ（Railwayのポートチェック用）
+# Flask アプリ（ダミーサーバ）
 app = Flask(__name__)
 
 @app.route("/")
 def ping():
     return "Celery Worker is alive!"
 
+# Celeryインスタンス
+celery = Celery(
+    "documentor_worker",
+    broker=os.getenv("REDIS_URL"),
+    backend=os.getenv("REDIS_URL")
+)
+
+# Celeryタスク読み込み（tasks.py から）
+celery.autodiscover_tasks(['tasks'])
+
 if __name__ == "__main__":
-    # ✅ Celeryワーカーをバックグラウンドで起動（重要！）
-    subprocess.Popen(["celery", "-A", "tasks", "worker", "--loglevel=info"])
-    
-    # ✅ Flaskサーバー起動（Railwayのため）
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
