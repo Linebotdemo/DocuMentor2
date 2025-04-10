@@ -4,11 +4,6 @@ import requests
 from celery import Celery
 from dotenv import load_dotenv
 
-# FlaskのDBとモデルを使う準備
-import sys
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from app import db, Video  # ← 追加
-
 load_dotenv()
 
 REDIS_URL = os.getenv("REDIS_URL")
@@ -34,22 +29,24 @@ def transcribe_video_task(self, video_url, video_id):
         result = response.json()
         text = result.get("text", "")
 
-        print(f"✅ Transcription done for video {video_id}, saving to DB")
+        print(f"✅ Transcription done for video {video_id}")
 
-        # ✅ DBに保存
-        video = Video.query.get(video_id)
-        if video:
-            video.whisper_text = text
-            db.session.commit()
-        else:
-            print(f"❗Video ID {video_id} が見つかりませんでした")
-
-        return json.dumps(result)
+        # 🚫 DB更新はせず、Flask側に戻す
+        return json.dumps({
+            "video_id": video_id,
+            "whisper_text": text
+        })
 
     except requests.exceptions.RequestException as e:
         print(f"❌ RequestException: {e}")
-        return json.dumps({"error": f"Request failed: {str(e)}"})
+        return json.dumps({
+            "video_id": video_id,
+            "error": f"Request failed: {str(e)}"
+        })
 
     except Exception as e:
         print(f"🔥 Unexpected error: {e}")
-        return json.dumps({"error": f"Unexpected error: {str(e)}"})
+        return json.dumps({
+            "video_id": video_id,
+            "error": f"Unexpected error: {str(e)}"
+        })
