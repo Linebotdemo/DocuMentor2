@@ -11,3 +11,4 @@ class Video(Base):
     cloudinary_url = Column(String(500), nullable=False)
     whisper_text = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
+    whisper_text = Column(Text)
