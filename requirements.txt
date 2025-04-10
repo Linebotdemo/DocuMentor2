@@ -5,6 +5,7 @@ wheel
 # Celery本体とRedisブローカー
 celery==5.3.6
 redis==5.0.1
+flask==2.2.5
 
 
 # 環境変数の読み込み
