@@ -22,8 +22,8 @@ celery = Celery("documentor_worker")
 celery.conf.broker_url = REDIS_URL
 celery.conf.result_backend = REDIS_URL
 
-# タスク定義
-@celery.task(bind=True, ignore_result=False)
+# タスク定義（Flask側が 'app.transcribe_video_task' で送信してくるため、nameを明示）
+@celery.task(bind=True, ignore_result=False, name="app.transcribe_video_task")
 def transcribe_video_task(self, video_url, video_id):
     print(f"🎬 Transcribing video {video_id} from {video_url}")
     try:
