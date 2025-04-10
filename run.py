@@ -11,6 +11,7 @@ app = Flask(__name__)
 def ping():
     return "Celery Worker is alive!"
 
+
 # Celeryインスタンス
 celery = Celery(
     "documentor_worker",
