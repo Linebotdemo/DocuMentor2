@@ -1,16 +1,6 @@
-# 最小構成のビルドに必要
-setuptools>=58.0.0
-wheel
-
-# Celery本体とRedisブローカー
-celery==5.3.6
-redis==5.0.1
-flask==2.2.5
-
-
-# 環境変数の読み込み
-python-dotenv==1.0.0
-sqlalchemy==2.0.28
-
-requests==2.31.0
-psycopg2-binary==2.9.9
+flask
+flask_sqlalchemy
+requests
+python-dotenv
+celery
+sqlalchemy
