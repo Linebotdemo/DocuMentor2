@@ -19,7 +19,6 @@ celery = Celery("documentor_worker", broker=REDIS_URL, backend=REDIS_URL)
 # DB設定
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
-celery = Celery("documentor_worker")
 celery.conf.broker_url = os.getenv("REDIS_URL")
 celery.conf.result_backend = os.getenv("REDIS_URL")
 
@@ -32,8 +31,9 @@ def transcribe_video_task(self, video_url, video_id):
         if not video:
             print(f"❗動画が見つかりません（video_id: {video_id}）")
             return {"error": "video not found"}
-
+        print("📡 Whisper APIへリクエスト送信")
         response = requests.post(WHISPER_API_URL, json={"video_url": video_url}, timeout=800)
+        print(f"🌐 レスポンス受信: {response.status_code}")
         response.raise_for_status()
         result = response.json()
         video.whisper_text = result.get("text", "")
