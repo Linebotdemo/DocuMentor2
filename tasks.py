@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from models import Video  # Quiz はRenderにあるため不要
-from tasks import transcribe_video_task
+
 
 # .env 読み込み
 load_dotenv()
