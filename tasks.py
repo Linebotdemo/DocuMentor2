@@ -5,16 +5,17 @@ from celery import Celery
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import Video  # models.py で SQLAlchemy モデルが定義されている前提
+from models import Video, Quiz  # Video, Quiz モデルがある前提
+from process import process_video  # GPT要約＆クイズ処理を分けているならここ
 
 # .env 読み込み
 load_dotenv()
 
 # 環境変数から設定取得
-FLASK_API_URL = os.getenv("FLASK_API_URL")  # Webhookを使う場合用（使ってない場合でも定義してOK）
+FLASK_API_URL = os.getenv("FLASK_API_URL")
 REDIS_URL = os.getenv("REDIS_URL")
 WHISPER_API_URL = os.getenv("WHISPER_API_URL")
-DATABASE_URL = os.getenv("FLASK_DATABASE_URI")  # Renderと同じDB URI（PostgreSQL）
+DATABASE_URL = os.getenv("FLASK_DATABASE_URI")
 
 # Celeryアプリ設定
 celery = Celery("documentor_worker")
@@ -35,15 +36,20 @@ def transcribe_video_task(self, video_url, video_id):
             print(f"❗動画が見つかりません（video_id: {video_id}）")
             return {"error": "video not found"}
 
-        # 1. まずはWhisperでテキストを取得して保存（既存コード）
+        # Whisper APIへ動画URLを送信
         response = requests.post(WHISPER_API_URL, json={"video_url": video_url}, timeout=800)
         response.raise_for_status()
         result = response.json()
-        video.whisper_text = result.get("text", "")
+        text = result.get("text", "")
+        print(f"✅ 取得した文字起こし: {text[:100]}...")
 
-        # 2. ↓ ここでGPT要約＆クイズ生成
-        process_video(video, generation_mode="manual")  # 👈 これ追加！
+        # Whisper結果をDBに保存
+        video.whisper_text = text
 
+        # GPT要約＋クイズ生成処理
+        process_video(video, generation_mode="manual")
+
+        # コミット
         session.commit()
         print("✅ 全ての処理完了")
         return result
@@ -52,9 +58,6 @@ def transcribe_video_task(self, video_url, video_id):
         session.rollback()
         print(f"🔥 Error: {e}")
         return {"error": str(e)}
-
-    finally:
-        session.close()
 
     finally:
         session.close()
