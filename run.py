@@ -1,22 +1,14 @@
 # run.py
 import os
 from flask import Flask
-from celery import Celery
+from tasks import celery  # ← tasks.pyからCeleryインスタンスを直接import
 
-# 🔽 この行を追加（tasks.py を読み込むことで task登録させる）
-import tasks
-
+# Flaskダミー
 app = Flask(__name__)
 
 @app.route("/")
 def ping():
     return "Celery Worker is alive!"
-
-celery = Celery(
-    "documentor_worker",
-    broker=os.getenv("REDIS_URL"),
-    backend=os.getenv("REDIS_URL")
-)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
