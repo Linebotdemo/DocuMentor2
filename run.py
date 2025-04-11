@@ -1,8 +1,10 @@
+# run.py
 import os
 from flask import Flask
-from tasks import transcribe_video_task  # ← これだけでOK
-
 from celery import Celery
+
+# 🔽 この行を追加（tasks.py を読み込むことで task登録させる）
+import tasks
 
 app = Flask(__name__)
 
