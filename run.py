@@ -1,9 +1,10 @@
 # run.py
 import os
 from flask import Flask
-from tasks import celery  # ← tasks.pyからCeleryインスタンスを直接import
 
-# Flaskダミー
+# ここでtasksモジュールをimportすることで、タスク登録が確実に行われる
+import tasks
+
 app = Flask(__name__)
 
 @app.route("/")

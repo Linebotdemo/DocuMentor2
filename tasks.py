@@ -1,27 +1,28 @@
+# tasks.py
 import os
 import requests
 from celery import Celery
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import Video  # Quiz は不要、Render側で生成されるから
-from tasks import transcribe_video_task
+from models import Video  # ここでは Quiz は不要（Render側で生成されるため）
 
-# 環境変数読み込み
+# 環境変数を読み込む
 load_dotenv()
 
+# 環境変数から各種URLを取得
 REDIS_URL = os.getenv("REDIS_URL")
 WHISPER_API_URL = os.getenv("WHISPER_API_URL")
 DATABASE_URL = os.getenv("FLASK_DATABASE_URI")
 
-# Celery設定
+# Celeryの設定
 celery = Celery("documentor_worker", broker=REDIS_URL, backend=REDIS_URL)
+celery.conf.broker_url = REDIS_URL
+celery.conf.result_backend = REDIS_URL
 
-# DB設定
+# DBの設定
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
-celery.conf.broker_url = os.getenv("REDIS_URL")
-celery.conf.result_backend = os.getenv("REDIS_URL")
 
 @celery.task(bind=True, ignore_result=False, name="app.transcribe_video_task")
 def transcribe_video_task(self, video_url, video_id):
@@ -58,4 +59,3 @@ def transcribe_video_task(self, video_url, video_id):
         return {"error": str(e)}
     finally:
         session.close()
-
