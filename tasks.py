@@ -24,7 +24,7 @@ celery.conf.result_backend = REDIS_URL
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 
-@celery.task(bind=True, ignore_result=False, name="app.transcribe_video_task")
+@celery.task(bind=True, name="app.transcribe_video_task")
 def transcribe_video_task(self, video_url, video_id):
     print(f"🎬 タスク開始: video_id={video_id}")
     print(f"📡 WHISPER_API_URL = {WHISPER_API_URL}")
@@ -59,3 +59,4 @@ def transcribe_video_task(self, video_url, video_id):
         return {"error": str(e)}
     finally:
         session.close()
+
