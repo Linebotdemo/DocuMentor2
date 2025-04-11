@@ -24,28 +24,37 @@ celery.conf.result_backend = os.getenv("REDIS_URL")
 
 @celery.task(bind=True, ignore_result=False, name="app.transcribe_video_task")
 def transcribe_video_task(self, video_url, video_id):
-    print(f"🎬 Transcribing video {video_id}")
+    print(f"🎬 タスク開始: video_id={video_id}")
+    print(f"📡 WHISPER_API_URL = {WHISPER_API_URL}")
+    print(f"📤 POST予定: {WHISPER_API_URL} に video_url: {video_url}")
+
     session = Session()
     try:
         video = session.query(Video).get(video_id)
         if not video:
             print(f"❗動画が見つかりません（video_id: {video_id}）")
-            print(f"🧠 WHISPER_API_URL = {WHISPER_API_URL}")
             return {"error": "video not found"}
-        print("📡 Whisper APIへリクエスト送信")
-        response = requests.post(WHISPER_API_URL, json={"video_url": video_url}, timeout=800)
-        print(f"🌐 レスポンス受信: {response.status_code}")
+
+        response = requests.post(
+            WHISPER_API_URL,
+            json={"video_url": video_url},
+            timeout=60
+        )
+
+        print(f"📥 ステータス: {response.status_code}")
+        print(f"📦 レスポンス本文: {response.text}")
+
         response.raise_for_status()
         result = response.json()
         video.whisper_text = result.get("text", "")
-
         session.commit()
-        print("✅ 文字起こし完了 & 保存")
+        print("✅ 文字起こし完了 & DB保存成功")
         return result
 
     except Exception as e:
         session.rollback()
-        print(f"🔥 Error: {e}")
+        print(f"🔥 Whisper POST中の例外: {e}")
         return {"error": str(e)}
     finally:
         session.close()
+
