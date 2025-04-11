@@ -30,6 +30,7 @@ def transcribe_video_task(self, video_url, video_id):
         video = session.query(Video).get(video_id)
         if not video:
             print(f"❗動画が見つかりません（video_id: {video_id}）")
+            print(f"🧠 WHISPER_API_URL = {WHISPER_API_URL}")
             return {"error": "video not found"}
         print("📡 Whisper APIへリクエスト送信")
         response = requests.post(WHISPER_API_URL, json={"video_url": video_url}, timeout=800)
