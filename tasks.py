@@ -30,29 +30,31 @@ def transcribe_video_task(self, video_url, video_id):
     print(f"🎬 Transcribing video {video_id}")
     session = Session()
     try:
-        # Whisper APIへ動画URLを送信
+        video = session.query(Video).get(video_id)
+        if not video:
+            print(f"❗動画が見つかりません（video_id: {video_id}）")
+            return {"error": "video not found"}
+
+        # 1. まずはWhisperでテキストを取得して保存（既存コード）
         response = requests.post(WHISPER_API_URL, json={"video_url": video_url}, timeout=800)
         response.raise_for_status()
         result = response.json()
-        text = result.get("text", "")
+        video.whisper_text = result.get("text", "")
 
-        print(f"✅ 取得した文字起こし: {text[:100]}...")
+        # 2. ↓ ここでGPT要約＆クイズ生成
+        process_video(video, generation_mode="manual")  # 👈 これ追加！
 
-        # DBに保存
-        video = session.query(Video).get(video_id)
-        if video:
-            video.whisper_text = text
-            session.commit()
-            print("✅ 文字起こしをDBに保存完了")
-        else:
-            print("❗動画が見つかりませんでした（video_id: {video_id}）")
-
+        session.commit()
+        print("✅ 全ての処理完了")
         return result
 
     except Exception as e:
         session.rollback()
         print(f"🔥 Error: {e}")
         return {"error": str(e)}
+
+    finally:
+        session.close()
 
     finally:
         session.close()
