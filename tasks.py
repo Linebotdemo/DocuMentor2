@@ -19,6 +19,9 @@ celery = Celery("documentor_worker", broker=REDIS_URL, backend=REDIS_URL)
 # DB設定
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
+celery = Celery("documentor_worker")
+celery.conf.broker_url = os.getenv("REDIS_URL")
+celery.conf.result_backend = os.getenv("REDIS_URL")
 
 @celery.task(bind=True, ignore_result=False, name="app.transcribe_video_task")
 def transcribe_video_task(self, video_url, video_id):
