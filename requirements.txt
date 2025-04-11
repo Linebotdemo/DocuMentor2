@@ -5,3 +5,4 @@ requests
 SQLAlchemy
 psycopg2-binary
 flask_sqlalchemy
+redis
