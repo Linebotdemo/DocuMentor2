@@ -1,1 +1,1 @@
-worker: celery -A tasks worker --loglevel=info
+python run.py
