@@ -11,10 +11,10 @@ from models import Video  # models.py で SQLAlchemy モデルが定義されて
 load_dotenv()
 
 # 環境変数から設定取得
-FLASK_API_URL = os.getenv("FLASK_API_URL")
+FLASK_API_URL = os.getenv("FLASK_API_URL")  # Webhookを使う場合用（使ってない場合でも定義してOK）
 REDIS_URL = os.getenv("REDIS_URL")
 WHISPER_API_URL = os.getenv("WHISPER_API_URL")
-DATABASE_URL = os.getenv("FLASK_DATABASE_URI")
+DATABASE_URL = os.getenv("FLASK_DATABASE_URI")  # Renderと同じDB URI（PostgreSQL）
 
 # Celeryアプリ設定
 celery = Celery("documentor_worker")
@@ -25,9 +25,9 @@ celery.conf.result_backend = REDIS_URL
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 
-@celery.task(bind=True, ignore_result=False, name="transcribe_video_task")
+@celery.task(bind=True, ignore_result=False, name="app.transcribe_video_task")
 def transcribe_video_task(self, video_url, video_id):
-    print(f"\n🎬 Transcribing video {video_id}")
+    print(f"🎬 Transcribing video {video_id}")
     session = Session()
     try:
         # Whisper APIへ動画URLを送信
@@ -45,7 +45,7 @@ def transcribe_video_task(self, video_url, video_id):
             session.commit()
             print("✅ 文字起こしをDBに保存完了")
         else:
-            print(f"❗動画が見つかりませんでした（video_id: {video_id}）")
+            print("❗動画が見つかりませんでした（video_id: {video_id}）")
 
         return result
 
