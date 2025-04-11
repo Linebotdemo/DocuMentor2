@@ -4,28 +4,29 @@ from celery import Celery
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import Video  # QuizはRender側で生成されるので不要
+from models import Video  # Quiz は Render 側で生成
 
-# 環境変数の読み込み
+# .env 読み込み
 load_dotenv()
 
-# 環境変数から各種設定値を取得
+# 環境変数取得
 REDIS_URL = os.getenv("REDIS_URL")
 WHISPER_API_URL = os.getenv("WHISPER_API_URL")
 DATABASE_URL = os.getenv("FLASK_DATABASE_URI")
-CALLBACK_URL = os.getenv("CALLBACK_URL")  # ← Render上のFlaskで受けるWebhook
+CALLBACK_URL = os.getenv("CALLBACK_URL")  # ← Render上のFlaskが受けるURL
 
+# デバッグ出力
 print(f"[DEBUG] REDIS_URL: {REDIS_URL}", flush=True)
 print(f"[DEBUG] WHISPER_API_URL: {WHISPER_API_URL}", flush=True)
 print(f"[DEBUG] DATABASE_URL: {DATABASE_URL}", flush=True)
 print(f"[DEBUG] CALLBACK_URL: {CALLBACK_URL}", flush=True)
 
-# Celery設定
+# Celery 設定
 celery = Celery("documentor_worker", broker=REDIS_URL, backend=REDIS_URL)
 celery.conf.broker_url = REDIS_URL
 celery.conf.result_backend = REDIS_URL
 
-# SQLAlchemy設定
+# DB 設定
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 
@@ -33,7 +34,7 @@ Session = sessionmaker(bind=engine)
 def transcribe_video_task(self, video_url, video_id):
     print(f"[TASK] 🎬 タスク開始: video_id = {video_id}", flush=True)
     print(f"[TASK] 📡 Whisper API URL: {WHISPER_API_URL}", flush=True)
-    print(f"[TASK] 📤 送信予定video_url: {video_url}", flush=True)
+    print(f"[TASK] 📤 送信予定 video_url: {video_url}", flush=True)
 
     session = Session()
 
@@ -46,11 +47,11 @@ def transcribe_video_task(self, video_url, video_id):
 
         print("[TASK] ✅ 動画レコード取得完了", flush=True)
 
-        # Whisper側に送るペイロードに video_id と callback_url を含める
+        # Whisper API に渡すペイロード
         payload = {
             "video_url": video_url,
             "video_id": video_id,
-            "callback_url": CALLBACK_URL  # 例: https://yourapp.onrender.com/videos/whisper_callback
+            "callback_url": CALLBACK_URL  # Whisper が結果をPOSTする先
         }
 
         print(f"[TASK] 📤 WhisperへPOST送信中... payload: {payload}", flush=True)
@@ -58,7 +59,8 @@ def transcribe_video_task(self, video_url, video_id):
         response = requests.post(
             WHISPER_API_URL,
             json=payload,
-            timeout=300  # Whisper側の処理が長引くこともある
+            headers={"Content-Type": "application/json"},  # 明示的に追加
+            timeout=300
         )
 
         print(f"[TASK] 📥 Whisperレスポンス受信 - ステータス: {response.status_code}", flush=True)
@@ -67,8 +69,7 @@ def transcribe_video_task(self, video_url, video_id):
         response.raise_for_status()
         result = response.json()
 
-        print("[TASK] 🔁 WhisperがRenderにcallbackするため、ここではDB保存しない", flush=True)
-
+        print("[TASK] 🔁 WhisperがRenderにcallbackする設計のため、ここではDB保存しない", flush=True)
         return result
 
     except Exception as e:
