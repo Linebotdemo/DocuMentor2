@@ -13,10 +13,12 @@ load_dotenv()
 REDIS_URL = os.getenv("REDIS_URL")
 WHISPER_API_URL = os.getenv("WHISPER_API_URL")
 DATABASE_URL = os.getenv("FLASK_DATABASE_URI")
+CALLBACK_URL = os.getenv("CALLBACK_URL")  # ← Render上のFlaskで受けるWebhook
 
 print(f"[DEBUG] REDIS_URL: {REDIS_URL}", flush=True)
 print(f"[DEBUG] WHISPER_API_URL: {WHISPER_API_URL}", flush=True)
 print(f"[DEBUG] DATABASE_URL: {DATABASE_URL}", flush=True)
+print(f"[DEBUG] CALLBACK_URL: {CALLBACK_URL}", flush=True)
 
 # Celery設定
 celery = Celery("documentor_worker", broker=REDIS_URL, backend=REDIS_URL)
@@ -44,10 +46,18 @@ def transcribe_video_task(self, video_url, video_id):
 
         print("[TASK] ✅ 動画レコード取得完了", flush=True)
 
-        print(f"[TASK] 📤 WhisperへPOST送信中...", flush=True)
+        # Whisper側に送るペイロードに video_id と callback_url を含める
+        payload = {
+            "video_url": video_url,
+            "video_id": video_id,
+            "callback_url": CALLBACK_URL  # 例: https://yourapp.onrender.com/videos/whisper_callback
+        }
+
+        print(f"[TASK] 📤 WhisperへPOST送信中... payload: {payload}", flush=True)
+
         response = requests.post(
             WHISPER_API_URL,
-            json={"video_url": video_url},
+            json=payload,
             timeout=300  # Whisper側の処理が長引くこともある
         )
 
@@ -56,15 +66,9 @@ def transcribe_video_task(self, video_url, video_id):
 
         response.raise_for_status()
         result = response.json()
-        transcription_text = result.get("text", "")
 
-        print(f"[TASK] ✍️ 文字起こし内容の先頭: {transcription_text[:100]}...", flush=True)
+        print("[TASK] 🔁 WhisperがRenderにcallbackするため、ここではDB保存しない", flush=True)
 
-        print("[TASK] 🧠 DBへ文字起こし内容を保存中...", flush=True)
-        video.whisper_text = transcription_text
-        session.commit()
-
-        print("[TASK] ✅ DB保存成功", flush=True)
         return result
 
     except Exception as e:
