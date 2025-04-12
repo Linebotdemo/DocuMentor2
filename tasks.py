@@ -1,25 +1,24 @@
-from celery import Celery
 import os
+from celery import Celery
 import requests
+import openai
 from dotenv import load_dotenv
+from models import db, Video, Quiz  # SQLAlchemyモデルをimport（Flaskアプリと同一構成前提）
+
 load_dotenv()
 
 celery = Celery(
     'tasks',
     broker=os.getenv('REDIS_URL', 'redis://localhost:6380/0'),
-    backend=os.getenv('REDIS_URL', 'redis://localhost:6380/0'),
-    openai.api_key = os.getenv("OPENAI_API_KEY")
+    backend=os.getenv('REDIS_URL', 'redis://localhost:6380/0')
 )
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 @celery.task
 def transcribe_video_task(video_url, video_id):
-    import os
-    import requests
-    from dotenv import load_dotenv
-    load_dotenv()
-
     whisper_api_url = os.getenv("WHISPER_API_URL")
-    callback_url = os.getenv("CALLBACK_URL")  # <= 必ず設定されている前提
+    callback_url = os.getenv("CALLBACK_URL")
 
     payload = {
         "video_url": video_url,
@@ -29,32 +28,20 @@ def transcribe_video_task(video_url, video_id):
 
     try:
         print(f"[DEBUG] Whisper API呼び出し: {whisper_api_url}")
-        response = requests.post(whisper_api_url, json=payload, timeout=10)
+        response = requests.post(whisper_api_url, json=payload, timeout=30)
         print(f"[DEBUG] Whisper APIレスポンス status={response.status_code}")
         print(f"[DEBUG] Whisper APIレスポンス body={response.text[:500]}")
         return response.status_code
     except Exception as e:
         print(f"[ERROR] Whisper API呼び出し失敗: {str(e)}")
-        # 成功したら Render 側の callback に送信
-        payload = {
-            "video_id": video_id,
-            "text": text
-        }
-
-        cb_response = requests.post(callback_url, json=payload, timeout=30)
-        print(f"[DEBUG] Callbackレスポンス status={cb_response.status_code}")
-        print(f"[DEBUG] Callbackレスポンス body={cb_response.text}")
-
-        return text
-
-    except Exception as e:
-        print(f"[ERROR] Whisperタスクエラー: {str(e)}")
         return None
+
 
 @celery.task(bind=True)
 def generate_summary_and_quiz_task(self, video_id, transcript):
     video = Video.query.get(video_id)
     if not video:
+        print(f"[ERROR] Video ID {video_id} not found")
         return
 
     mode = video.generation_mode or "manual"
