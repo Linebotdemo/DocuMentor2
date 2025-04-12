@@ -2,7 +2,6 @@ from celery import Celery
 import os
 import requests
 from dotenv import load_dotenv
-return text
 load_dotenv()
 
 celery = Celery(
