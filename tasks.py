@@ -39,6 +39,7 @@ def transcribe_video_task(video_url, video_id):
 
 @celery.task(bind=True)
 def generate_summary_and_quiz_task(self, video_id, transcript):
+    with app.app_context():  # これでFlaskのDB操作が可能になる
     video = Video.query.get(video_id)
     if not video:
         print(f"[ERROR] Video ID {video_id} not found")
