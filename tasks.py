@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from models import Video  # Quiz は Render 側で生成
+import openai
 
 # .env 読み込み
 load_dotenv()
@@ -20,6 +21,8 @@ print(f"[DEBUG] REDIS_URL: {REDIS_URL}", flush=True)
 print(f"[DEBUG] WHISPER_API_URL: {WHISPER_API_URL}", flush=True)
 print(f"[DEBUG] DATABASE_URL: {DATABASE_URL}", flush=True)
 print(f"[DEBUG] CALLBACK_URL: {CALLBACK_URL}", flush=True)
+app.config['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY', 'your-openai-api-key')
+openai.api_key = app.config['OPENAI_API_KEY']
 
 # Celery 設定
 celery = Celery("documentor_worker", broker=REDIS_URL, backend=REDIS_URL)
