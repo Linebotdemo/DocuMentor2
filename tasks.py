@@ -7,7 +7,7 @@ load_dotenv()
 celery = Celery(
     'tasks',
     broker=os.getenv('REDIS_URL', 'redis://localhost:6380/0'),
-    backend=os.getenv('REDIS_URL', 'redis://localhost:6380/0')
+    backend=os.getenv('REDIS_URL', 'redis://localhost:6380/0'),
     openai.api_key = os.getenv("OPENAI_API_KEY")
 )
 
