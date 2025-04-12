@@ -3,21 +3,30 @@ from celery import Celery
 import openai
 import requests
 from dotenv import load_dotenv
-from app import app, db  # FlaskアプリとSQLAlchemyを明示的にimport
-from app import Video, Quiz  # モデルも明示的にimport
 
+# FlaskアプリとSQLAlchemyをインポート
+import app  # モジュール名（app.py）
+from app import db, Video, Quiz  # モデル
+
+# 環境変数読み込み
 load_dotenv()
 
+# Celery初期化
 celery = Celery(
     'tasks',
     broker=os.getenv('REDIS_URL', 'redis://localhost:6380/0'),
     backend=os.getenv('REDIS_URL', 'redis://localhost:6380/0')
 )
 
+# OpenAI APIキー設定
 openai.api_key = os.getenv("OPENAI_API_KEY")
+
 
 @celery.task(bind=True)
 def transcribe_video_task(self, video_url, video_id):
+    """
+    Whisper APIにCloudinary動画URLを送信して文字起こしを依頼する。
+    """
     whisper_api_url = os.getenv("WHISPER_API_URL")
     callback_url = os.getenv("CALLBACK_URL")
 
@@ -40,7 +49,10 @@ def transcribe_video_task(self, video_url, video_id):
 
 @celery.task(bind=True)
 def generate_summary_and_quiz_task(self, video_id, transcript):
-    with app.app_context():  # ←インデント忘れ注意！
+    """
+    Whisper文字起こし結果から要約とクイズを生成し、DBに保存。
+    """
+    with app.app.app_context():  # Flaskアプリケーションコンテキスト
         video = Video.query.get(video_id)
         if not video:
             print(f"[ERROR] Video ID {video_id} not found")
@@ -48,6 +60,7 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
 
         mode = video.generation_mode or "manual"
 
+        # === 要約生成 ===
         try:
             if mode == "manual":
                 summary_prompt = f"""
@@ -74,11 +87,11 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
                 ],
                 timeout=90
             )
-            summary_text = summary_response.choices[0].message.content.strip()
-            video.summary_text = summary_text
+            video.summary_text = summary_response.choices[0].message.content.strip()
         except Exception as e:
             video.summary_text = f"要約失敗: {str(e)}"
 
+        # === クイズ生成 ===
         try:
             quiz_prompt = f"""
 以下の内容を元に、読み手の理解を確認するための日本語クイズを3問以上作成してください。
@@ -95,6 +108,7 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
 {transcript}
 ---
 """
+
             quiz_response = openai.ChatCompletion.create(
                 model="gpt-4",
                 messages=[
