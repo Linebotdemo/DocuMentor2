@@ -4,55 +4,23 @@ import openai
 import requests
 from dotenv import load_dotenv
 
-# FlaskアプリとSQLAlchemyをインポート
-import app  # モジュール名（app.py）
-from app import db, Video, Quiz  # モデル
+# FlaskアプリとDBをインポート（必ず app.py に Flask app がある前提）
+from app import app, db
+from models import Video, Quiz
 
-# 環境変数読み込み
 load_dotenv()
 
-# Celery初期化
 celery = Celery(
     'tasks',
-    broker=os.getenv('REDIS_URL', 'redis://localhost:6380/0'),
-    backend=os.getenv('REDIS_URL', 'redis://localhost:6380/0')
+    broker=os.getenv('REDIS_URL', 'redis://localhost:6379/0'),
+    backend=os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 )
 
-# OpenAI APIキー設定
 openai.api_key = os.getenv("OPENAI_API_KEY")
-
-
-@celery.task(bind=True)
-def transcribe_video_task(self, video_url, video_id):
-    """
-    Whisper APIにCloudinary動画URLを送信して文字起こしを依頼する。
-    """
-    whisper_api_url = os.getenv("WHISPER_API_URL")
-    callback_url = os.getenv("CALLBACK_URL")
-
-    payload = {
-        "video_url": video_url,
-        "video_id": video_id,
-        "callback_url": callback_url
-    }
-
-    try:
-        print(f"[DEBUG] Whisper API呼び出し: {whisper_api_url}")
-        response = requests.post(whisper_api_url, json=payload, timeout=30)
-        print(f"[DEBUG] Whisper APIレスポンス status={response.status_code}")
-        print(f"[DEBUG] Whisper APIレスポンス body={response.text[:500]}")
-        return response.status_code
-    except Exception as e:
-        print(f"[ERROR] Whisper API呼び出し失敗: {str(e)}")
-        return None
-
 
 @celery.task(bind=True)
 def generate_summary_and_quiz_task(self, video_id, transcript):
-    """
-    Whisper文字起こし結果から要約とクイズを生成し、DBに保存。
-    """
-    with app.app.app_context():  # Flaskアプリケーションコンテキスト
+    with app.app_context():
         video = Video.query.get(video_id)
         if not video:
             print(f"[ERROR] Video ID {video_id} not found")
@@ -60,7 +28,6 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
 
         mode = video.generation_mode or "manual"
 
-        # === 要約生成 ===
         try:
             if mode == "manual":
                 summary_prompt = f"""
@@ -78,7 +45,6 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
 {transcript}
 ---
 """
-
             summary_response = openai.ChatCompletion.create(
                 model="gpt-4",
                 messages=[
@@ -91,7 +57,6 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
         except Exception as e:
             video.summary_text = f"要約失敗: {str(e)}"
 
-        # === クイズ生成 ===
         try:
             quiz_prompt = f"""
 以下の内容を元に、読み手の理解を確認するための日本語クイズを3問以上作成してください。
@@ -108,7 +73,6 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
 {transcript}
 ---
 """
-
             quiz_response = openai.ChatCompletion.create(
                 model="gpt-4",
                 messages=[
@@ -117,13 +81,12 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
                 ],
                 timeout=90
             )
-            quiz_text = quiz_response.choices[0].message.content.strip()
 
             quiz = Quiz.query.filter_by(video_id=video.id).first()
             if not quiz:
                 quiz = Quiz(video_id=video.id, title=f"Quiz for {video.title}")
                 db.session.add(quiz)
-            quiz.auto_quiz_text = quiz_text
+            quiz.auto_quiz_text = quiz_response.choices[0].message.content.strip()
         except Exception as e:
             quiz = Quiz.query.filter_by(video_id=video.id).first()
             if not quiz:
