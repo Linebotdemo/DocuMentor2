@@ -2,7 +2,7 @@ from celery import Celery
 import os
 import requests
 from dotenv import load_dotenv
-
+return text
 load_dotenv()
 
 celery = Celery(
@@ -32,6 +32,7 @@ def transcribe_video_task(video_url, video_id):
         response = requests.post(whisper_api_url, json=payload, timeout=10)
         print(f"[DEBUG] Whisper APIレスポンス status={response.status_code}")
         print(f"[DEBUG] Whisper APIレスポンス body={response.text[:500]}")
+        return response.status_code
     except Exception as e:
         print(f"[ERROR] Whisper API呼び出し失敗: {str(e)}")
         # 成功したら Render 側の callback に送信
