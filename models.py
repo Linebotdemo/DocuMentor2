@@ -35,6 +35,7 @@ class Video(db.Model):
     summary_text = db.Column(db.Text)
     ocr_text = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    generation_mode = db.Column(db.String(20), default="manual")
 
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
