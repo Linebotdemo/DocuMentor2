@@ -103,3 +103,27 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
             quiz.auto_quiz_text = f"クイズ生成失敗: {str(e)}"
 
         db.session.commit()
+
+
+@celery.task(name='tasks.transcribe_video_task')
+def transcribe_video_task(video_url, video_id):
+    import os
+    import requests
+    whisper_api_url = os.getenv("WHISPER_API_URL")
+    callback_url = os.getenv("CALLBACK_URL")
+
+    payload = {
+        "video_url": video_url,
+        "video_id": video_id,
+        "callback_url": callback_url
+    }
+
+    try:
+        print(f"[DEBUG] Whisper API呼び出し: {whisper_api_url}")
+        response = requests.post(whisper_api_url, json=payload, timeout=30)
+        print(f"[DEBUG] Whisper APIレスポンス status={response.status_code}")
+        print(f"[DEBUG] Whisper APIレスポンス body={response.text[:500]}")
+        return response.status_code
+    except Exception as e:
+        print(f"[ERROR] Whisper API呼び出し失敗: {str(e)}")
+        return None
