@@ -3,25 +3,28 @@ from celery import Celery
 import requests
 import openai
 from dotenv import load_dotenv
+from flask import Flask
 from models import db, Video, Quiz
 
+# 環境変数の読み込み
+load_dotenv()
 
-from flask import Flask
-
-# Flaskアプリケーションをこのファイル内で明示的に作成する（Context用）
+# Flaskアプリケーションの作成
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL", "sqlite:///local.db")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# DB初期化
 db.init_app(app)
 
-load_dotenv()
-
+# Celery初期化
 celery = Celery(
     'tasks',
     broker=os.getenv('REDIS_URL'),
     backend=os.getenv('REDIS_URL')
 )
 
+# OpenAI APIキー
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 @celery.task(bind=True)
@@ -34,6 +37,7 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
 
         mode = video.generation_mode or "manual"
 
+        # ===== 要約生成 =====
         try:
             if mode == "manual":
                 summary_prompt = f"""
@@ -65,6 +69,7 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
         except Exception as e:
             video.summary_text = f"要約失敗: {str(e)}"
 
+        # ===== クイズ生成 =====
         try:
             quiz_prompt = f"""
 以下の内容を元に、読み手の理解を確認するための日本語クイズを3問以上作成してください。
@@ -90,26 +95,20 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
                 timeout=90
             )
             quiz_text = quiz_response.choices[0].message.content.strip()
-
-            quiz = Quiz.query.filter_by(video_id=video.id).first()
-            if not quiz:
-                quiz = Quiz(video_id=video.id, title=f"Quiz for {video.title}")
-                db.session.add(quiz)
-            quiz.auto_quiz_text = quiz_text
         except Exception as e:
-            quiz = Quiz.query.filter_by(video_id=video.id).first()
-            if not quiz:
-                quiz = Quiz(video_id=video.id, title=f"Quiz for {video.title}")
-                db.session.add(quiz)
-            quiz.auto_quiz_text = f"クイズ生成失敗: {str(e)}"
+            quiz_text = f"クイズ生成失敗: {str(e)}"
+
+        quiz = Quiz.query.filter_by(video_id=video.id).first()
+        if not quiz:
+            quiz = Quiz(video_id=video.id, title=f"Quiz for {video.title}")
+            db.session.add(quiz)
+        quiz.auto_quiz_text = quiz_text
+        video.quiz_text = quiz_text
 
         db.session.commit()
 
-
 @celery.task(name='tasks.transcribe_video_task')
 def transcribe_video_task(video_url, video_id):
-    import os
-    import requests
     whisper_api_url = os.getenv("WHISPER_API_URL")
     callback_url = os.getenv("CALLBACK_URL")
 
@@ -122,8 +121,8 @@ def transcribe_video_task(video_url, video_id):
     try:
         print(f"[DEBUG] Whisper API呼び出し: {whisper_api_url}")
         response = requests.post(whisper_api_url, json=payload, timeout=30)
-        print(f"[DEBUG] Whisper APIレスポンス status={response.status_code}")
-        print(f"[DEBUG] Whisper APIレスポンス body={response.text[:500]}")
+        print(f"[DEBUG] Whisper APIレスポンス status={{response.status_code}}")
+        print(f"[DEBUG] Whisper APIレスポンス body={{response.text[:500]}}")
         return response.status_code
     except Exception as e:
         print(f"[ERROR] Whisper API呼び出し失敗: {str(e)}")
