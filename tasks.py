@@ -25,13 +25,14 @@ celery = Celery(
 # OpenAI設定
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+
 @celery.task(bind=True)
 def generate_summary_and_quiz_task(self, video_id, transcript):
     with app.app_context():
         video = Video.query.get(video_id)
         if not video:
             print(f"[ERROR] Video ID {video_id} not found")
-            return
+            return False
 
         mode = video.generation_mode or "manual"
 
@@ -94,26 +95,26 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
             )
             print("[DEBUG] ChatGPT クイズ生成結果:", quiz_response)
             quiz_text = quiz_response.choices[0].message.content.strip()
-            print("[DEBUG] quiz_text =", quiz_text)
+            video.quiz_text = quiz_text  # ← ★ここ重要！
 
-            video.quiz_text = auto_quiz_text
+            # Quizモデルへ保存
             quiz = Quiz.query.filter_by(video_id=video.id).first()
             if not quiz:
                 quiz = Quiz(video_id=video.id, title=f"Quiz for {video.title}")
                 db.session.add(quiz)
             quiz.auto_quiz_text = quiz_text
-            print("[DEBUG] 保存前 video.quiz_text =", video.quiz_text)
-            video.quiz_text = quiz_text
 
         except Exception as e:
+            error_msg = f"クイズ生成失敗: {str(e)}"
             quiz = Quiz.query.filter_by(video_id=video.id).first()
             if not quiz:
                 quiz = Quiz(video_id=video.id, title=f"Quiz for {video.title}")
                 db.session.add(quiz)
-            quiz.auto_quiz_text = f"クイズ生成失敗: {str(e)}"
-            video.quiz_text = f"クイズ生成失敗: {str(e)}"
+            quiz.auto_quiz_text = error_msg
+            video.quiz_text = error_msg
 
         db.session.commit()
+        return True
 
 
 @celery.task(name='tasks.transcribe_video_task')
