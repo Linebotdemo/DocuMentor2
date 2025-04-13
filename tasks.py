@@ -4,6 +4,7 @@ import requests
 import openai
 from dotenv import load_dotenv
 from models import db, Video, Quiz
+from your_model_module import Video
 
 from flask import Flask
 
