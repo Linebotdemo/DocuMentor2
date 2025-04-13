@@ -101,6 +101,7 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
                 quiz = Quiz(video_id=video.id, title=f"Quiz for {video.title}")
                 db.session.add(quiz)
             quiz.auto_quiz_text = quiz_text
+            print("[DEBUG] 保存前 video.quiz_text =", video.quiz_text)
             video.quiz_text = quiz_text
 
         except Exception as e:
