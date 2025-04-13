@@ -1,19 +1,24 @@
 import os
 from celery import Celery
-import openai
 import requests
+import openai
 from dotenv import load_dotenv
+from models import db, Video, Quiz
 
-# FlaskアプリとDBをインポート（必ず app.py に Flask app がある前提）
-from app import app, db
-from models import Video, Quiz
+from flask import Flask
+
+# Flaskアプリケーションをこのファイル内で明示的に作成する（Context用）
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL", "sqlite:///local.db")
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
 
 load_dotenv()
 
 celery = Celery(
     'tasks',
-    broker=os.getenv('REDIS_URL', 'redis://localhost:6379/0'),
-    backend=os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+    broker=os.getenv('REDIS_URL'),
+    backend=os.getenv('REDIS_URL')
 )
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -45,6 +50,7 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
 {transcript}
 ---
 """
+
             summary_response = openai.ChatCompletion.create(
                 model="gpt-4",
                 messages=[
@@ -53,7 +59,8 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
                 ],
                 timeout=90
             )
-            video.summary_text = summary_response.choices[0].message.content.strip()
+            summary_text = summary_response.choices[0].message.content.strip()
+            video.summary_text = summary_text
         except Exception as e:
             video.summary_text = f"要約失敗: {str(e)}"
 
@@ -81,12 +88,13 @@ def generate_summary_and_quiz_task(self, video_id, transcript):
                 ],
                 timeout=90
             )
+            quiz_text = quiz_response.choices[0].message.content.strip()
 
             quiz = Quiz.query.filter_by(video_id=video.id).first()
             if not quiz:
                 quiz = Quiz(video_id=video.id, title=f"Quiz for {video.title}")
                 db.session.add(quiz)
-            quiz.auto_quiz_text = quiz_response.choices[0].message.content.strip()
+            quiz.auto_quiz_text = quiz_text
         except Exception as e:
             quiz = Quiz.query.filter_by(video_id=video.id).first()
             if not quiz:
