@@ -1,7 +1,6 @@
 import os
 from celery import Celery
 import requests
-import openai
 from dotenv import load_dotenv
 from flask import Flask
 from models import db, Video, Quiz
