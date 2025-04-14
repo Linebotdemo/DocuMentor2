@@ -21,9 +21,6 @@ celery = Celery(
     backend=os.getenv('REDIS_URL')
 )
 
-# OpenAI設定
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
 
 @celery.task(bind=True)
 def generate_summary_and_quiz_task(self, video_id, transcript):
